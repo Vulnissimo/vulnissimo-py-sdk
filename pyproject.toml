@@ -1,15 +1,15 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=64.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "vulnissimo"
-version = "0.0.5"
+version = "1.0.0a"
 description = "Scan web apps from your code."
 readme = "README.md"
 authors = [{ name = "Vulnissimo", email = "contact@vulnissimo.io" }]
 license = { file = "LICENSE" }
-dependencies = ["requests", "rich", "typer"]
+dependencies = ["attrs", "httpx", "pydantic[email]", "rich", "typer"]
 requires-python = ">=3.9"
 
 [project.scripts]
