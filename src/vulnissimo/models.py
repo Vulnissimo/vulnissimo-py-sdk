@@ -134,7 +134,7 @@ class Recon(BaseModel):
 
 class ScanCreate(BaseModel):
     target: AnyUrl = Field(..., title="Target")
-    type: Optional[ScanType] = "passive"
+    type: Optional[ScanType] = ScanType.PASSIVE
     is_private: Optional[bool] = Field(False, title="Is Private")
 
 

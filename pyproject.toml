@@ -9,7 +9,14 @@ description = "Scan web apps from your code."
 readme = "README.md"
 authors = [{ name = "Vulnissimo", email = "contact@vulnissimo.io" }]
 license = { file = "LICENSE" }
-dependencies = ["requests", "rich", "typer"]
+dependencies = [
+    "attrs",
+    "httpx",
+    "pydantic[email]",
+    "requests",
+    "rich",
+    "typer",
+]
 requires-python = ">=3.9"
 
 [project.scripts]
