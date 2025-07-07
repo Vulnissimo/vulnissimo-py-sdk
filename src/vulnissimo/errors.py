@@ -7,14 +7,22 @@ from pydantic import BaseModel
 from .models import ExceptionResponseData
 
 
-class ClientError(Exception):
+class APIError(Exception):
+    """Base class for errors returned by the Vulnissimo API"""
+
+    def __init__(self, status_code: HTTPStatus, *args):
+        self.status_code = status_code
+
+        super().__init__(*args)
+
+
+class ClientError(APIError):
     """Base class for when a call to the Vulnissimo API returns a 4xx status code"""
 
     def __init__(self, status_code: HTTPStatus, data: BaseModel, *args):
-        self.status_code = status_code
         self.data = data
 
-        super().__init__(*args)
+        super().__init__(status_code, *args)
 
 
 class BadRequestError(ClientError):
@@ -61,27 +69,27 @@ class UnprocessableEntityError(ClientError):
         )
 
 
-class UnexpectedStatusError(Exception):
+class UnexpectedStatusError(APIError):
     """Raised when a call to the Vulnissimo API returns an undocumented status code"""
 
     def __init__(self, status_code: HTTPStatus, data: bytes):
-        self.status_code = status_code
         self.data = data
 
         super().__init__(
-            f"Unexpected API Client error\n\nStatus code: {status_code}\n\nResponse data:\n{data.decode()}"
+            status_code,
+            f"Unexpected API Client error\n\nStatus code: {status_code}\n\nResponse data:\n{data.decode()}",
         )
 
 
-class ServerError(Exception):
+class ServerError(APIError):
     """Raised when a call to the Vulnissimo API returns a 5xx status code"""
 
     def __init__(self, status_code: HTTPStatus, data: bytes):
-        self.status_code = status_code
         self.data = bytes
 
         super().__init__(
-            f"API Server error\n\nStatus code: {status_code}\n\nResponse data:\n{data.decode()}"
+            status_code,
+            f"API Server error\n\nStatus code: {status_code}\n\nResponse data:\n{data.decode()}",
         )
 
 

@@ -19,7 +19,7 @@ from rich.prompt import Prompt
 
 from .api import get_scan_result, run_scan
 from .client import Client
-from .errors import ClientError, ServerError, UnexpectedStatusError
+from .errors import APIError
 from .models import ScanCreate, ScanResult, ScanStatus
 
 app = typer.Typer(no_args_is_help=True)
@@ -45,7 +45,7 @@ def get(
         with get_client() as client:
             scan = get_scan_result.sync(scan_id=scan_id, client=client)
             output_scan(scan, output_file, indent)
-    except (ClientError, ServerError, UnexpectedStatusError) as e:
+    except APIError as e:
         rich_print(f"[red]{str(e)}[/red]")
 
 
@@ -91,7 +91,7 @@ def run(
 
         output_scan(scan, output_file, indent)
 
-    except (ClientError, ServerError, UnexpectedStatusError) as e:
+    except APIError as e:
         rich_print(f"[red]{str(e)}[/red]")
 
 
