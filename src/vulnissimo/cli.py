@@ -37,13 +37,14 @@ def get(
     output_file: Annotated[
         str | None, typer.Option(help="File to write scan result to")
     ] = None,
+    indent: Annotated[int, typer.Option(help="Indentation of the JSON output")] = 2,
 ):
     """Get scan by ID"""
 
     try:
         with get_client() as client:
             scan = get_scan_result.sync(scan_id=scan_id, client=client)
-            output_scan(scan, output_file)
+            output_scan(scan, output_file, indent)
     except (ClientError, ServerError, UnexpectedStatusError) as e:
         rich_print(f"[red]{str(e)}[/red]")
 
@@ -54,6 +55,7 @@ def run(
     output_file: Annotated[
         str | None, typer.Option(help="File to write scan result to")
     ] = None,
+    indent: Annotated[int, typer.Option(help="Indentation of the JSON output")] = 2,
 ):
     """Run a scan on a given target"""
 
@@ -87,25 +89,25 @@ def run(
                         break
                     time.sleep(2)
 
-        output_scan(scan, output_file)
+        output_scan(scan, output_file, indent)
 
     except (ClientError, ServerError, UnexpectedStatusError) as e:
         rich_print(f"[red]{str(e)}[/red]")
 
 
-def output_scan(scan: ScanResult, output_file: str | None):
+def output_scan(scan: ScanResult, output_file: str | None, indent: int):
     """
     If `output_file` is provided, write the scan to `output_file`. Else, print it to the console
     """
 
     while True:
         if not output_file:
-            print_json(scan.model_dump_json())
+            print_json(scan.model_dump_json(), indent=indent)
             return
 
         try:
             with open(output_file, "w+", encoding="UTF-8") as f:
-                json.dump(scan.model_dump(mode="json"), f, indent=4)
+                json.dump(scan.model_dump(mode="json"), f, indent=indent)
             rich_print(f"Scan result was written to {output_file}.")
             return
         except PermissionError as e:
