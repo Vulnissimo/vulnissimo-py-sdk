@@ -6,7 +6,8 @@ from typing import Annotated
 from uuid import UUID
 
 import typer
-from rich import print as rich_print, print_json
+from rich import print as rich_print
+from rich import print_json
 from rich.progress import (
     BarColumn,
     Progress,
@@ -16,10 +17,18 @@ from rich.progress import (
 )
 from rich.prompt import Prompt
 
-from .api import get_scan_info, run_scan
-from .exceptions import StartScanException
+from .api import get_scan_result, run_scan
+from .client import Client
+from .errors import ClientError, ServerError, UnexpectedStatusError
+from .models import ScanCreate, ScanResult, ScanStatus
 
 app = typer.Typer(no_args_is_help=True)
+
+
+def get_client():
+    """Get a basic client for the Vulnissimo api"""
+
+    return Client(base_url="https://api.vulnissimo.io")
 
 
 @app.command(no_args_is_help=True)
@@ -30,8 +39,13 @@ def get(
     ] = None,
 ):
     """Get scan by ID"""
-    scan = get_scan_info(scan_id)
-    output_scan(scan, output_file)
+
+    try:
+        with get_client() as client:
+            scan = get_scan_result.sync(scan_id=scan_id, client=client)
+            output_scan(scan, output_file)
+    except (ClientError, ServerError, UnexpectedStatusError) as e:
+        rich_print(f"[red]{str(e)}[/red]")
 
 
 @app.command(no_args_is_help=True)
@@ -44,53 +58,54 @@ def run(
     """Run a scan on a given target"""
 
     try:
-        started_scan = run_scan(target)
-        rich_print(f"Scan started on {target}.")
-        rich_print(f"See live updates at https://vulnissimo.io/scans/{started_scan['id']}.")
+        with get_client() as client:
+            started_scan = run_scan.sync(client=client, body=ScanCreate(target=target))
+            rich_print(f"Scan started on {target}.")
+            rich_print(
+                f"See live updates at https://vulnissimo.io/scans/{started_scan['id']}."
+            )
 
-        progress_columns = [
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TaskProgressColumn(),
-            TimeElapsedColumn(),
-        ]
+            progress_columns = [
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeElapsedColumn(),
+            ]
 
-        with Progress(*progress_columns) as progress_bar:
-            task_id = progress_bar.add_task("Scanning...")
-            scan_progress = 0
+            with Progress(*progress_columns) as progress_bar:
+                task_id = progress_bar.add_task("Scanning...")
+                scan_progress = 0
 
-            while True:
-                scan = get_scan_info(started_scan["id"])
-                new_scan_progress = scan["scan_info"]["progress"]
-                scan_progress_diff = new_scan_progress - scan_progress
-                if scan_progress_diff != 0:
-                    progress_bar.update(task_id, advance=scan_progress_diff)
-                scan_progress = new_scan_progress
-                if scan["scan_info"]["status"] == "finished":
-                    break
-                time.sleep(2)
+                while True:
+                    scan = get_scan_result.sync(scan_id=started_scan.id, client=client)
+                    new_scan_progress = scan.scan_info.progress
+                    scan_progress_diff = new_scan_progress - scan_progress
+                    if scan_progress_diff != 0:
+                        progress_bar.update(task_id, advance=scan_progress_diff)
+                    scan_progress = new_scan_progress
+                    if scan.scan_info.status == ScanStatus.FINISHED:
+                        break
+                    time.sleep(2)
 
         output_scan(scan, output_file)
 
-    except StartScanException as e:
-        rich_print(
-            f"[red bold]Could not start scan:[/red bold] {e.status_code}: {e.error_msg}"
-        )
+    except (ClientError, ServerError, UnexpectedStatusError) as e:
+        rich_print(f"[red]{str(e)}[/red]")
 
 
-def output_scan(scan: dict, output_file: str | None):
+def output_scan(scan: ScanResult, output_file: str | None):
     """
     If `output_file` is provided, write the scan to `output_file`. Else, print it to the console
     """
 
     while True:
         if not output_file:
-            print_json(json.dumps(scan))
+            print_json(scan.model_dump_json())
             return
 
         try:
             with open(output_file, "w+", encoding="UTF-8") as f:
-                json.dump(scan, f, indent=4)
+                json.dump(scan.model_dump(mode="json"), f, indent=4)
             rich_print(f"Scan result was written to {output_file}.")
             return
         except PermissionError as e:
