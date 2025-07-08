@@ -23,6 +23,7 @@ from .models import ScanCreate, ScanResult, ScanStatus
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
+error_console = Console(stderr=True, style="red")
 
 
 def get_client():
@@ -46,7 +47,7 @@ def get(
             scan = get_scan_result.sync(scan_id=scan_id, client=client)
             output_scan(scan, output_file, indent)
     except APIError as e:
-        console.print(f"[red]{str(e)}[/red]")
+        error_console.print(f"{str(e)}")
 
 
 @app.command(no_args_is_help=True)
@@ -90,7 +91,7 @@ def run(
         output_scan(scan, output_file, indent)
 
     except APIError as e:
-        console.print(f"[red]{str(e)}[/red]")
+        error_console.print(f"{str(e)}")
 
 
 def output_scan(scan: ScanResult, output_file: str | None, indent: int):
@@ -109,7 +110,7 @@ def output_scan(scan: ScanResult, output_file: str | None, indent: int):
             console.print(f"Scan result was written to {output_file}.")
             return
         except PermissionError as e:
-            console.print(f"[red]Could not open file for writing: {e.strerror}.[/red]")
+            error_console.print(f"Could not open file for writing: {e.strerror}.")
             output_file = Prompt.ask(
                 "Enter another file name for writing"
                 " (or leave empty to write the scan result to the console)"
