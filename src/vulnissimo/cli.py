@@ -63,9 +63,7 @@ def run(
         with get_client() as client:
             started_scan = run_scan.sync(client=client, body=ScanCreate(target=target))
             rich_print(f"Scan started on {target}.")
-            rich_print(
-                f"See live updates at https://vulnissimo.io/scans/{started_scan['id']}."
-            )
+            rich_print(f"See live updates at {started_scan.html_result}.")
 
             progress_columns = [
                 TextColumn("[progress.description]{task.description}"),
