@@ -32,7 +32,7 @@ class BadRequestError(ClientError):
         super().__init__(
             HTTPStatus.BAD_REQUEST,
             data,
-            f"API Error: 400 Bad Request\nResponse data: {data.model_dump_json()}",
+            f"API Error: 400 Bad Request. Response data: {data.model_dump_json()}",
         )
 
 
@@ -43,7 +43,7 @@ class UnauthorizedError(ClientError):
         super().__init__(
             HTTPStatus.UNAUTHORIZED,
             data,
-            f"API Error: 401 Unauthorized\nResponse data: {data.model_dump_json()}",
+            f"API Error: 401 Unauthorized. Response data: {data.model_dump_json()}",
         )
 
 
@@ -54,7 +54,7 @@ class NotFoundError(ClientError):
         super().__init__(
             HTTPStatus.NOT_FOUND,
             data,
-            f"API Error: 404 Not Found\nResponse data: {data.model_dump_json()}",
+            f"API Error: 404 Not Found. Response data: {data.model_dump_json()}",
         )
 
 
@@ -65,7 +65,7 @@ class UnprocessableEntityError(ClientError):
         super().__init__(
             HTTPStatus.NOT_FOUND,
             data,
-            f"API Error: 422 Unprocessable Entity\nResponse data: {data.model_dump_json()}",
+            f"API Error: 422 Unprocessable Entity. Response data: {data.model_dump_json()}",
         )
 
 
@@ -77,7 +77,7 @@ class UnexpectedStatusError(APIError):
 
         super().__init__(
             status_code,
-            f"Unexpected API Client error\n\nStatus code: {status_code}\n\nResponse data:\n{data.decode()}",
+            f"Unexpected API Client error. Status code: {status_code}. Response data: {data.decode()}",
         )
 
 
@@ -89,7 +89,7 @@ class ServerError(APIError):
 
         super().__init__(
             status_code,
-            f"API Server error\n\nStatus code: {status_code}\n\nResponse data:\n{data.decode()}",
+            f"API Server error. Status code: {status_code}. Response data: {data.decode()}",
         )
 
 

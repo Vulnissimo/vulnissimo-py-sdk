@@ -52,7 +52,9 @@ class JsonFileOutputter(Outputter):
                 console.print(f"Scan result was written to {self.output_file}.")
                 return
             except PermissionError as e:
-                error_console.print(f"Could not open file for writing: {e.strerror}.")
+                error_console.print(
+                    f"[ERROR] Could not open file for writing: {e.strerror}."
+                )
                 self.output_file = Prompt.ask(
                     "Enter another file name for writing"
                     " (or leave empty to write the scan result to the console)"
@@ -90,18 +92,3 @@ class OutputterFactory:
                 return JsonFileOutputter(output_file, indent)
             elif output_type == ScanResultOutputType.PRETTY:
                 return PrettyFileOutputter(output_file)
-
-
-def output_scan(
-    scan_result: ScanResult,
-    output_file: str | None,
-    output_type: ScanResultOutputType,
-    indent: int,
-):
-    """
-    If `output_file` is provided, write the scan to `output_file`. Else, print it to the console
-    """
-
-    factory = OutputterFactory()
-    outputter = factory.create_outputter(output_file, output_type, indent)
-    outputter.output(scan_result)

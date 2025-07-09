@@ -18,8 +18,8 @@ from .client import Client
 from .console import console, error_console
 from .enums import ScanResultOutputType
 from .errors import APIError
-from .models import ScanCreate, ScanStatus
-from .scan_result_output import output_scan
+from .models import ScanCreate, ScanResult, ScanStatus
+from .scan_result_output import OutputterFactory
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -43,9 +43,14 @@ def get(
     try:
         with get_client() as client:
             scan_result = get_scan_result.sync(scan_id=scan_id, client=client)
-            output_scan(scan_result, output_file, ScanResultOutputType.JSON, indent)
+
+            factory = OutputterFactory()
+            outputter = factory.create_outputter(
+                output_file, ScanResultOutputType.JSON, indent
+            )
+            outputter.output(scan_result)
     except APIError as e:
-        error_console.print(f"{str(e)}")
+        error_console.print(f"[ERROR] {str(e)}")
 
 
 @app.command(no_args_is_help=True)
@@ -61,8 +66,9 @@ def run(
     try:
         with get_client() as client:
             started_scan = run_scan.sync(client=client, body=ScanCreate(target=target))
-            console.print(f"Scan started on {target}.")
-            console.print(f"See live updates at {started_scan.html_result}.")
+            console.print(f"[INFO] Scan started on {target}")
+            console.print(f"[INFO] Scan ID: {started_scan.id}")
+            console.print(f"[INFO] See live updates at {started_scan.html_result}")
 
             progress_columns = [
                 TextColumn("[progress.description]{task.description}"),
@@ -71,24 +77,39 @@ def run(
                 TimeElapsedColumn(),
             ]
 
-            with Progress(*progress_columns) as progress_bar:
-                task_id = progress_bar.add_task("Scanning...")
-                scan_progress = 0
+            with Progress(*progress_columns) as progress:
+                task_id = progress.add_task("Scanning...")
+                prev_scan_result: ScanResult | None = None
 
                 while True:
                     scan_result = get_scan_result.sync(
                         scan_id=started_scan.id, client=client
                     )
-                    new_scan_progress = scan_result.scan_info.progress
-                    scan_progress_diff = new_scan_progress - scan_progress
-                    if scan_progress_diff != 0:
-                        progress_bar.update(task_id, advance=scan_progress_diff)
-                    scan_progress = new_scan_progress
+
+                    if scan_result.scan_info.redirect_url is not None and (
+                        prev_scan_result is None
+                        or prev_scan_result.scan_info.redirect_url is None
+                    ):
+                        progress.console.print(
+                            f"[INFO] Target URL redirected to {scan_result.scan_info.redirect_url}"
+                        )
+
+                    progress.update(task_id, completed=scan_result.scan_info.progress)
+
                     if scan_result.scan_info.status == ScanStatus.FINISHED:
                         break
+
+                    prev_scan_result = scan_result
+
                     time.sleep(2)
 
-        output_scan(scan_result, output_file, ScanResultOutputType.JSON, indent)
+        console.print("[INFO] Scan complete.")
+
+        factory = OutputterFactory()
+        outputter = factory.create_outputter(
+            output_file, ScanResultOutputType.JSON, indent
+        )
+        outputter.output(scan_result)
 
     except APIError as e:
-        error_console.print(f"{str(e)}")
+        error_console.print(f"[ERROR] {str(e)}")
