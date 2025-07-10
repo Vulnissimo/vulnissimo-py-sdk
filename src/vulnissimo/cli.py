@@ -15,7 +15,7 @@ from rich.progress import (
 
 from .api import get_scan_result, run_scan
 from .client import Client
-from .console import console, error_console
+from .console import default_console, error_console
 from .enums import ScanResultOutputType
 from .errors import APIError
 from .models import ScanCreate, ScanResult, ScanStatus
@@ -36,7 +36,15 @@ def get(
     output_file: Annotated[
         str | None, typer.Option(help="File to write scan result to")
     ] = None,
-    indent: Annotated[int, typer.Option(help="Indentation of the JSON output")] = 2,
+    output_type: Annotated[
+        ScanResultOutputType, typer.Option(help="Scan output type")
+    ] = ScanResultOutputType.PRETTY,
+    indent: Annotated[
+        int,
+        typer.Option(
+            help="Indentation of the output (only applicable to JSON outputs)"
+        ),
+    ] = 2,
 ):
     """Get scan by ID"""
 
@@ -45,9 +53,7 @@ def get(
             scan_result = get_scan_result.sync(scan_id=scan_id, client=client)
 
             factory = OutputterFactory()
-            outputter = factory.create_outputter(
-                output_file, ScanResultOutputType.JSON, indent
-            )
+            outputter = factory.create_outputter(output_file, output_type, indent)
             outputter.output(scan_result)
     except APIError as e:
         error_console.print(f"[ERROR] {str(e)}")
@@ -59,16 +65,26 @@ def run(
     output_file: Annotated[
         str | None, typer.Option(help="File to write scan result to")
     ] = None,
-    indent: Annotated[int, typer.Option(help="Indentation of the JSON output")] = 2,
+    output_type: Annotated[
+        ScanResultOutputType, typer.Option(help="Scan output type")
+    ] = ScanResultOutputType.PRETTY,
+    indent: Annotated[
+        int,
+        typer.Option(
+            help="Indentation of the output (only applicable to JSON outputs)"
+        ),
+    ] = 2,
 ):
     """Run a scan on a given target"""
 
     try:
         with get_client() as client:
             started_scan = run_scan.sync(client=client, body=ScanCreate(target=target))
-            console.print(f"[INFO] Scan started on {target}")
-            console.print(f"[INFO] Scan ID: {started_scan.id}")
-            console.print(f"[INFO] See live updates at {started_scan.html_result}")
+            default_console.print(f"[INFO] Scan started on {target}")
+            default_console.print(f"[INFO] Scan ID: {started_scan.id}")
+            default_console.print(
+                f"[INFO] See live updates at {started_scan.html_result}"
+            )
 
             progress_columns = [
                 TextColumn("[progress.description]{task.description}"),
@@ -103,12 +119,10 @@ def run(
 
                     time.sleep(2)
 
-        console.print("[INFO] Scan complete.")
+        default_console.print("[INFO] Scan complete.")
 
         factory = OutputterFactory()
-        outputter = factory.create_outputter(
-            output_file, ScanResultOutputType.JSON, indent
-        )
+        outputter = factory.create_outputter(output_file, output_type, indent)
         outputter.output(scan_result)
 
     except APIError as e:
