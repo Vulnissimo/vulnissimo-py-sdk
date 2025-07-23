@@ -22,7 +22,7 @@ class Vulnissimo:
             self.client = Client(VULNISSIMO_BASE_URL)
             self.default_is_private = False
 
-    def run(
+    def run_scan(
         self,
         target: str,
         type: ScanType | None = ScanType.PASSIVE,
@@ -56,3 +56,35 @@ class Vulnissimo:
                 time.sleep(2)
 
             return scan
+
+    def start_scan(
+        self,
+        target: str,
+        type: ScanType | None = ScanType.PASSIVE,
+        is_private: bool | None = None,
+    ) -> ScanResult:
+        """
+        Start a scan with Vulnissimo.
+
+        Parameters:
+            target (str): the URL to scan
+            type (ScanType): the scan type, either Passive or Active
+            is_private: whether the scan will or will not be visible in the Vulnissimo web platform.
+                If not set, then it will be set to `True` if you have initialized Vulnissimo with an
+                API token, otherwise it will be set to `False`.
+        """
+
+        if is_private is None:
+            is_private = self.default_is_private
+
+        body = ScanCreate(target=AnyUrl(target), type=type, is_private=is_private)
+
+        with self.client as client:
+            created_scan = run_scan.sync(client=client, body=body)
+            return get_scan_result.sync(scan_id=created_scan.id, client=client)
+
+    def poll(self, scan: ScanResult) -> ScanResult:
+        """Fetch new data for a scan."""
+
+        with self.client as client:
+            return get_scan_result.sync(scan_id=scan.id, client=client)
