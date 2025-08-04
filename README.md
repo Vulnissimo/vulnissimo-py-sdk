@@ -39,20 +39,17 @@ pip install vulnissimo
 
 ## 📦 Usage Examples
 
-### 1️⃣ Passive Scan (No API Key Required)
+### 1️⃣ Fully Automated
 
-##### Use the `run_scan` method to quickly run a scan without needing to handle polling manually. The method will automatically handle the scan lifecycle and return the results when the scan is done.
+Use the `run_scan` method to quickly run a scan without needing to handle polling manually. The method will automatically handle the scan lifecycle and return the results when the scan is done.
 
 ```python
 from vulnissimo import Vulnissimo
-from vulnissimo.models import ScanType
 
 v = Vulnissimo()
 
 # Run a passive scan with public visibility
-scan = v.run_scan(
-    "https://pentest-ground.com:4280", type=ScanType.PASSIVE, is_private=False
-)
+scan = v.run_scan("https://pentest-ground.com:4280")
 
 # List vulnerabilities found in the scan
 for vulnerability in scan.vulnerabilities:
@@ -63,22 +60,19 @@ print(f"Scan completed with {len(scan.vulnerabilities)} vulnerabilities found.")
 
 ---
 
-### 2️⃣ Active Scan (API Key Required)
+### 2️⃣ Manual Control
 
-##### Use the `start_scan` method to initiate a scan and poll for results manually. This gives you more control allowing you to process partial results as they come in.
+Use the `start_scan` method to initiate a scan and poll for results manually. This gives you more control allowing you to process partial results as they come in.
 
 ```python
 from time import sleep
 
 from vulnissimo import Vulnissimo
-from vulnissimo.models import ScanType
 
-v = Vulnissimo(api_token=API_TOKEN)  # Replace with your API token
+v = Vulnissimo()
 
 # Start the scan
-scan = v.start_scan(
-    "https://pentest-ground.com:4280", type=ScanType.ACTIVE, is_private=True
-)
+scan = v.start_scan("https://pentest-ground.com:4280")
 all_vulnerabilities = []
 
 # Manually poll for scan results
@@ -94,6 +88,30 @@ while not scan.is_finished():
 
 print(f"Scan completed with {len(scan.vulnerabilities)} vulnerabilities found.")
 ```
+
+---
+
+### 3️⃣ Active Scan (API Key Required)
+
+Provide a Vulnissimo API key and run active scans.
+
+```python
+from time import sleep
+
+from vulnissimo import Vulnissimo
+from vulnissimo.models import ScanType
+
+# First, get an authenticated Vulnisismo instance by providing an API token...
+v = Vulnissimo(api_token=API_TOKEN)  # Replace with your API token
+
+# ... then, run an Active Scan using `run_scan` or `start_scan`, as in the examples above.
+scan = v.run_scan(
+    "https://pentest-ground.com:4280", type=ScanType.ACTIVE, is_private=True
+)
+# or
+scan = v.start_scan(
+    "https://pentest-ground.com:4280", type=ScanType.ACTIVE, is_private=True
+)
 
 ---
 
