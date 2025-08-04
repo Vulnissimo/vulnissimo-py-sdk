@@ -1,13 +1,10 @@
 """The CLI module for Vulnissimo."""
 
-import json
 import time
 from typing import Annotated
 from uuid import UUID
 
 import typer
-from rich import print as rich_print
-from rich import print_json
 from rich.progress import (
     BarColumn,
     Progress,
@@ -15,12 +12,14 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
-from rich.prompt import Prompt
 
 from .api import get_scan_result, run_scan
 from .client import Client
+from .console import default_console, error_console
+from .enums import ScanResultOutputType
 from .errors import APIError
 from .models import ScanCreate, ScanResult, ScanStatus
+from .scan_result_output import OutputterFactory
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -37,16 +36,27 @@ def get(
     output_file: Annotated[
         str | None, typer.Option(help="File to write scan result to")
     ] = None,
-    indent: Annotated[int, typer.Option(help="Indentation of the JSON output")] = 2,
+    output_type: Annotated[
+        ScanResultOutputType, typer.Option(help="Scan output type")
+    ] = ScanResultOutputType.PRETTY,
+    indent: Annotated[
+        int,
+        typer.Option(
+            help="Indentation of the output (only applicable to JSON outputs)"
+        ),
+    ] = 2,
 ):
     """Get scan by ID"""
 
     try:
         with get_client() as client:
-            scan = get_scan_result.sync(scan_id=scan_id, client=client)
-            output_scan(scan, output_file, indent)
+            scan_result = get_scan_result.sync(scan_id=scan_id, client=client)
+
+            factory = OutputterFactory()
+            outputter = factory.create_outputter(output_file, output_type, indent)
+            outputter.output(scan_result)
     except APIError as e:
-        rich_print(f"[red]{str(e)}[/red]")
+        error_console.print(f"[ERROR] {str(e)}")
 
 
 @app.command(no_args_is_help=True)
@@ -55,15 +65,26 @@ def run(
     output_file: Annotated[
         str | None, typer.Option(help="File to write scan result to")
     ] = None,
-    indent: Annotated[int, typer.Option(help="Indentation of the JSON output")] = 2,
+    output_type: Annotated[
+        ScanResultOutputType, typer.Option(help="Scan output type")
+    ] = ScanResultOutputType.PRETTY,
+    indent: Annotated[
+        int,
+        typer.Option(
+            help="Indentation of the output (only applicable to JSON outputs)"
+        ),
+    ] = 2,
 ):
     """Run a scan on a given target"""
 
     try:
         with get_client() as client:
             started_scan = run_scan.sync(client=client, body=ScanCreate(target=target))
-            rich_print(f"Scan started on {target}.")
-            rich_print(f"See live updates at {started_scan.html_result}.")
+            default_console.print(f"[INFO] Scan started on {target}")
+            default_console.print(f"[INFO] Scan ID: {started_scan.id}")
+            default_console.print(
+                f"[INFO] See live updates at {started_scan.html_result}"
+            )
 
             progress_columns = [
                 TextColumn("[progress.description]{task.description}"),
@@ -72,45 +93,37 @@ def run(
                 TimeElapsedColumn(),
             ]
 
-            with Progress(*progress_columns) as progress_bar:
-                task_id = progress_bar.add_task("Scanning...")
-                scan_progress = 0
+            with Progress(*progress_columns) as progress:
+                task_id = progress.add_task("Scanning...")
+                prev_scan_result: ScanResult | None = None
 
                 while True:
-                    scan = get_scan_result.sync(scan_id=started_scan.id, client=client)
-                    new_scan_progress = scan.scan_info.progress
-                    scan_progress_diff = new_scan_progress - scan_progress
-                    if scan_progress_diff != 0:
-                        progress_bar.update(task_id, advance=scan_progress_diff)
-                    scan_progress = new_scan_progress
-                    if scan.scan_info.status == ScanStatus.FINISHED:
+                    scan_result = get_scan_result.sync(
+                        scan_id=started_scan.id, client=client
+                    )
+
+                    if scan_result.scan_info.redirect_url is not None and (
+                        prev_scan_result is None
+                        or prev_scan_result.scan_info.redirect_url is None
+                    ):
+                        progress.console.print(
+                            f"[INFO] Target URL redirected to {scan_result.scan_info.redirect_url}"
+                        )
+
+                    progress.update(task_id, completed=scan_result.scan_info.progress)
+
+                    if scan_result.scan_info.status == ScanStatus.FINISHED:
                         break
+
+                    prev_scan_result = scan_result
+
                     time.sleep(2)
 
-        output_scan(scan, output_file, indent)
+        default_console.print("[INFO] Scan complete.")
+
+        factory = OutputterFactory()
+        outputter = factory.create_outputter(output_file, output_type, indent)
+        outputter.output(scan_result)
 
     except APIError as e:
-        rich_print(f"[red]{str(e)}[/red]")
-
-
-def output_scan(scan: ScanResult, output_file: str | None, indent: int):
-    """
-    If `output_file` is provided, write the scan to `output_file`. Else, print it to the console
-    """
-
-    while True:
-        if not output_file:
-            print_json(scan.model_dump_json(), indent=indent)
-            return
-
-        try:
-            with open(output_file, "w+", encoding="UTF-8") as f:
-                json.dump(scan.model_dump(mode="json"), f, indent=indent)
-            rich_print(f"Scan result was written to {output_file}.")
-            return
-        except PermissionError as e:
-            rich_print(f"[red]Could not open file for writing: {e.strerror}.[/red]")
-            output_file = Prompt.ask(
-                "Enter another file name for writing"
-                " (or leave empty to write the scan result to the console)"
-            )
+        error_console.print(f"[ERROR] {str(e)}")
