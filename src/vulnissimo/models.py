@@ -181,3 +181,6 @@ class ScanResult(BaseModel):
     scan_info: ScanInfo
     vulnerabilities: List[Vulnerability] = Field(..., title="Vulnerabilities")
     recon: Recon
+
+    def is_finished(self) -> bool:
+        return self.scan_info.status == ScanStatus.FINISHED
