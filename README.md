@@ -2,7 +2,6 @@
 
 Vulnissimo is a powerful web application vulnerability scanner that helps you automate the detection of security issues in websites exposed to the Internet. This Python SDK lets you interact with the Vulnissimo API to launch and monitor vulnerability scans for your web applications, right from your code.
 
-
 ## 🔍 About Vulnissimo
 
 Vulnissimo offers two scanning modes:
@@ -60,7 +59,7 @@ print(f"Scan completed with {len(scan.vulnerabilities)} vulnerabilities found.")
 
 ---
 
-### 2️⃣ Manual Control
+### 2️⃣ Manual Control (more advanced)
 
 Use the `start_scan` method to initiate a scan and poll for results manually. This gives you more control allowing you to process partial results as they come in.
 
@@ -96,11 +95,6 @@ print(f"Scan completed with {len(scan.vulnerabilities)} vulnerabilities found.")
 Provide a Vulnissimo API key and run active scans.
 
 ```python
-from time import sleep
-
-from vulnissimo import Vulnissimo
-from vulnissimo.models import ScanType
-
 # First, get an authenticated Vulnisismo instance by providing an API token...
 v = Vulnissimo(api_token=API_TOKEN)  # Replace with your API token
 
@@ -112,6 +106,7 @@ scan = v.run_scan(
 scan = v.start_scan(
     "https://pentest-ground.com:4280", type=ScanType.ACTIVE, is_private=True
 )
+```
 
 ---
 
